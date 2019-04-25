@@ -244,6 +244,6 @@ if __name__ == "__main__":
       project.delete(file.replace('d@',''))
     if re.match('^[^@]*', file):
       project.apply(file)
-    if re.match('^@\w*\.@\w*$', file):
+    if re.match('^[^@]*\.@[^@]*$', file):
       print("ERROR: remane project file is not supported")
       sys.exit(1)
