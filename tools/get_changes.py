@@ -32,8 +32,6 @@ for file in result.json():
       files.append(file['old_path']+'@'+file['new_path'])
     elif file['deleted_file']:
       files.append('d@'+file['new_path'])
-    elif file['deleted_file']:
-      files.append('d@'+file['new_path'])
     else:
       files.append(file['new_path'])
 
