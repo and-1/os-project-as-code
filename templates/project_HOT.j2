@@ -1,0 +1,254 @@
+heat_template_version: queens
+
+description: HOT for create/change project settings
+
+parameters:
+  domain:
+    type: string
+    immutable: true
+  main:
+    type: boolean
+    default: false
+  project:
+    type: string
+    immutable: true
+  region_dns_suffix:
+    type: string
+    default: ""
+{%- for scope,data in net_scopes.iteritems()%}
+  {{scope|lower}}_import_rt:
+    type: string
+  {{scope|lower}}_export_rt:
+    type: string
+  {{scope|lower}}_cidr:
+    type: string
+  {{scope|lower}}_dns_ext_visible:
+    type: string
+    default: false
+  {{scope|lower}}_dns_ttl:
+    type: number
+    default: 86400
+  {{scope|lower}}_dns_record_order:
+    type: string
+    default: fixed
+  {{scope|lower}}_dns_reverse_zone:
+    type: string
+    default: true
+{% endfor %}
+  gigabytes:
+    type: number
+    default: 0
+  snapshots:
+    type: number
+    default: 0
+  volumes:
+    type: number
+    default: 0
+  cores:
+    type: number
+    default: 0
+  instances:
+    type: number
+    default: 0
+  ram:
+    type: number
+    default: 0
+  networks:
+    type: number
+    default: 0
+  subnets:
+    type: number
+    default: 0
+  ports:
+    type: number
+    default: 0
+  routers:
+    type: number
+    default: 0
+
+conditions:
+  ks_obj:
+    get_param: main
+
+resources:
+  project_res:
+    type: OS::Keystone::Project
+    properties:
+      domain: {get_param: domain}
+      name: {get_param: project}
+    condition: ks_obj
+  project_id:
+    type: OS::Heat::Value
+    properties:
+      type: string
+{%if main %}
+      value: {get_resource: project_res}
+{%else%}
+      value: {get_param: project}
+{%endif%}
+{%- for role in roles %}
+  {{role}}_group:
+    type: OS::Keystone::Group
+    condition: ks_obj
+    properties:
+      domain: {get_param: domain}
+      name:
+        str_replace:
+          template: proj_{{role}}_group
+          params: 
+            proj: {get_param: project}
+      roles:
+      - project: {get_attr: [project_id, value]}
+        role: {{role}}
+{%- for user in users %}
+{%- if user.role | default(default_role) == role %}
+  {{user.name}}:
+    type: OS::Keystone::User
+    condition: ks_obj
+    properties:
+      domain: {get_param: domain}
+      groups:
+      - {get_resource: {{role}}_group}
+      name: {{user.name}}
+      password: P@$$word
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+{%- for scope,data in net_scopes.iteritems() %}
+  {{scope|lower}}_dns_server:
+    type: OS::ContrailV2::VirtualDns
+    properties:
+      domain: {get_param: domain}
+      name:
+        str_replace:
+          template: dns-proj-zone
+          params:
+            proj: {get_param: project}
+      virtual_DNS_data:
+        virtual_DNS_data_default_ttl_seconds: {get_param: {{scope|lower}}_dns_ttl}
+        virtual_DNS_data_domain_name:
+          str_replace:
+            template: proj.{{scope|lower}}.suffix
+            params:
+              proj: {get_param: project}
+              suffix: {get_param: dns_suffix}
+        virtual_DNS_data_external_visible: {get_param: {{scope|lower}}_dns_ext_visible}
+        virtual_DNS_data_record_order: {get_param: {{scope|lower}}_dns_record_order}
+        virtual_DNS_data_reverse_resolution: {get_param: {{scope|lower}}_dns_reverse_zone} 
+        virtual_DNS_data_next_virtual_DNS: defalut-domain:{{scope}}
+
+  {{scope|lower}}_dns_record:
+    type: OS::ContrailV2::VirtualDnsRecord
+    properties:
+      name:
+        str_replace:
+          template: ns-proj-zone
+          params:
+            proj: {get_param: project}
+      virtual_DNS: defalut-domain:{{scope}}
+      virtual_DNS_record_data:
+        virtual_DNS_record_data_record_class: IN
+        virtual_DNS_record_data_record_data: {list_join: [':', {get_attr: [{{scope|lower}}_dns_server, fq_name]}]}
+        virtual_DNS_record_data_record_name: 
+          str_replace:
+            template: proj.{{scope|lower}}.suffix
+            params:
+              proj: {get_param: project}
+              suffix: {get_param: region_dns_suffix}
+        virtual_DNS_record_data_record_type: NS
+        virtual_DNS_record_data_record_ttl_seconds: {get_param: {{scope|lower}}_dns_ttl}
+  ipam:
+    depends_on: ['{{scope|lower}}_dns_server']
+    type: OS::ContrailV2::NetworkIpam
+    properties:
+      name:
+        str_replace:
+          template: proj_{{scope}}_ipam
+          params:
+            proj: {get_param: project}
+      project: {get_attr: [project_id, value]}
+      virtual_DNS_refs: [{list_join: [':', {get_attr: [{{scope|lower}}_dns_server, fq_name]}]}]
+      network_ipam_mgmt:
+        network_ipam_mgmt_ipam_dns_method: virtual-dns-server
+        network_ipam_mgmt_ipam_dns_server:
+          network_ipam_mgmt_ipam_dns_server_virtual_dns_server_name: {list_join: [':', {get_attr: [{{scope|lower}}_dns_server, fq_name]}]}
+
+  network_{{scope}}_contrail:
+    type: OS::ContrailV2::VirtualNetwork
+    depends_on: [ ipam ]
+    properties:
+      name:
+        str_replace:
+          template: proj_{{scope|lower}}_net
+          params:
+            proj: {get_param: project}
+      project: {get_attr: [project_id, value]}
+      ecmp_hashing_include_fields:
+        ecmp_hashing_include_fields_destination_ip: true
+        ecmp_hashing_include_fields_destination_port: true
+        ecmp_hashing_include_fields_hashing_configured: true
+        ecmp_hashing_include_fields_ip_protocol: true
+        ecmp_hashing_include_fields_source_ip: true
+        ecmp_hashing_include_fields_source_port: true
+      export_route_target_list:
+        export_route_target_list_route_target:
+        - str_replace:
+            template: target:rt
+            params:
+              rt: { get_param: {{scope|lower}}_export_rt}
+      import_route_target_list:
+        import_route_target_list_route_target:
+        - str_replace:
+            template: target:rt
+            params:
+              rt: { get_param: {{scope|lower}}_import_rt}
+      is_shared: False
+      network_ipam_refs:
+      - { get_resource: ipam }
+      network_ipam_refs_data:
+      - network_ipam_refs_data_ipam_subnets:
+        - network_ipam_refs_data_ipam_subnets_subnet:
+            network_ipam_refs_data_ipam_subnets_subnet_ip_prefix: {str_split: ['/', {get_param: {{scope|lower}}_cidr}, 0]}
+            network_ipam_refs_data_ipam_subnets_subnet_ip_prefix_len: {str_split: ['/', {get_param: {{scope|lower}}_cidr}, 1]}
+          network_ipam_refs_data_ipam_subnets_subnet_name: 
+            str_replace:
+              template: proj_{{scope|lower}}_subnet
+              params:
+                proj: {get_param: project}
+          network_ipam_refs_data_ipam_subnets_enable_dhcp: true
+             
+{%- endfor%}
+  neutron_quota:
+{%- if main %}
+    depends_on: ['project_res']
+{%- endif %}
+    type: OS::Neutron::Quota
+# Workaround. Delete neutron quotas don't success with contrail backend
+    deletion_policy: Retain
+    properties:
+      network: {get_param: networks}
+      project: {get_attr: [project_id, value]}
+      port: {get_param: ports}
+      router: {get_param: routers}
+      subnet: {get_param: subnets}
+
+  nova_quota:
+    type: OS::Nova::Quota
+{%- if main %}
+    depends_on: ['project_res']
+{%- endif %}
+    properties:
+      cores: {get_param: cores}
+      instances: {get_param: instances}
+      ram: {get_param: ram}
+      project: {get_attr: [project_id, value]}
+  cinder_qouta:
+    type: OS::Cinder::Quota
+{%- if main %}
+    depends_on: ['project_res']
+{%- endif %}
+    properties:
+      gigabytes: {get_param: gigabytes}
+      snapshots: {get_param: snapshots}
+      volumes: {get_param: volumes}
+      project: {get_attr: [project_id, value]}

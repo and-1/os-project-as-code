@@ -1,0 +1,29 @@
+auth_url: http://keystone.logistic.lan:80/v3
+ks_username: admin
+ks_project: admin
+ks_domain: default
+default_role: member
+regions:
+  RegionOne:
+    main: true
+    region_dns_suffix: cloud-r1.logistic.lan
+    dns_forwarder: 192.168.1.138
+    domain: dev
+    net_scopes:
+      test:
+        import_rt: 64512:200
+        export_rt: 64512:100
+      dev:
+        import_rt: 64512:201
+        export_rt: 64512:101
+#  RegionTwo:
+#    region_dns_suffix: cloud-r2.logistic.lan
+#    dns_forwarder: 192.168.1.138
+#    domain: dev
+#    net_scopes:
+#      test:
+#        import_rt: 64512:200
+#        export_rt: 64512:100
+#      dev:
+#        import_rt: 64512:201
+#        export_rt: 64512:101

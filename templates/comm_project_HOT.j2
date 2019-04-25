@@ -1,0 +1,88 @@
+heat_template_version: queens
+
+description: HOT for create/change project settings
+
+parameters:
+  domain:
+    type: string
+  main:
+    type: boolean
+  dns_ttl:
+    type: number
+    default: 86400
+  region_dns_suffix:
+    type: string
+  tf_domain:
+    type: string
+    default: default-domain
+  dns_ext_visible:
+    type: string
+    default: False
+  dns_record_order:
+    type: string
+    default: fixed
+  dns_reverse_zone:
+    type: string
+    default: True
+  dns_forwarder:
+    type: string
+{%- for scope in net_scopes %}
+  {{scope|lower}}_dns_ext_visible:
+    type: string
+    default: False
+  {{scope|lower}}_dns_record_order:
+    type: string
+    default: fixed
+  {{scope|lower}}_dns_reverse_zone:
+    type: string
+    default: True
+{%- endfor %}
+
+resources:
+  region_dns_server:
+    type: OS::ContrailV2::VirtualDns
+    properties:
+      domain: {get_param: tf_domain}
+      name: dns-region-zone
+      virtual_DNS_data:
+        virtual_DNS_data_default_ttl_seconds: {get_param: dns_ttl}
+        virtual_DNS_data_domain_name: {get_param: region_dns_suffix}
+        virtual_DNS_data_external_visible: {get_param: dns_ext_visible}
+        virtual_DNS_data_record_order: {get_param: dns_record_order}
+        virtual_DNS_data_reverse_resolution: {get_param: dns_reverse_zone}
+        virtual_DNS_data_next_virtual_DNS: {get_param: dns_forwarder}
+
+{%- for scope in net_scopes %}
+  {{scope|lower}}_dns_server:
+    type: OS::ContrailV2::VirtualDns
+    properties:
+      domain: {get_param: tf_domain}
+      name: dns-{{scope}}-zone
+      virtual_DNS_data:
+        virtual_DNS_data_default_ttl_seconds: {get_param: dns_ttl}
+        virtual_DNS_data_domain_name:
+          str_replace:
+            template: {{scope|lower}}.suffix
+            params:
+              suffix: {get_param: region_dns_suffix}
+        virtual_DNS_data_external_visible: {get_param: {{scope|lower}}_dns_ext_visible}
+        virtual_DNS_data_record_order: {get_param: {{scope|lower}}_dns_record_order}
+        virtual_DNS_data_reverse_resolution: {get_param: {{scope|lower}}_dns_reverse_zone}
+        virtual_DNS_data_next_virtual_DNS: {list_join: [':', {get_attr: [region_dns_server, fq_name]}]}
+
+  {{scope|lower}}_dns_record:
+    type: OS::ContrailV2::VirtualDnsRecord
+    properties:
+      name: ns-{{scope}}-zone
+      virtual_DNS: {list_join: [':', {get_attr: [region_dns_server, fq_name]}]}
+      virtual_DNS_record_data:
+        virtual_DNS_record_data_record_class: IN
+        virtual_DNS_record_data_record_data: {list_join: [':', {get_attr: [{{scope|lower}}_dns_server, fq_name]}]}
+        virtual_DNS_record_data_record_name:
+          str_replace:
+            template: {{scope|lower}}.suffix
+            params:
+              suffix: {get_param: region_dns_suffix}
+        virtual_DNS_record_data_record_type: NS
+        virtual_DNS_record_data_record_ttl_seconds: {get_param: dns_ttl}
+{%- endfor %}
