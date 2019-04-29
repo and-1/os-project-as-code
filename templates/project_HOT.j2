@@ -24,7 +24,7 @@ parameters:
     type: string
   {{scope|lower}}_dns_ext_visible:
     type: string
-    default: false
+    default: true
   {{scope|lower}}_dns_ttl:
     type: number
     default: 86400
@@ -125,17 +125,18 @@ resources:
           params:
             proj: {get_param: project}
       virtual_DNS_data:
+        virtual_DNS_data_dynamic_records_from_client: true
         virtual_DNS_data_default_ttl_seconds: {get_param: {{scope|lower}}_dns_ttl}
         virtual_DNS_data_domain_name:
           str_replace:
             template: proj.{{scope|lower}}.suffix
             params:
               proj: {get_param: project}
-              suffix: {get_param: dns_suffix}
+              suffix: {get_param: region_dns_suffix}
         virtual_DNS_data_external_visible: {get_param: {{scope|lower}}_dns_ext_visible}
         virtual_DNS_data_record_order: {get_param: {{scope|lower}}_dns_record_order}
         virtual_DNS_data_reverse_resolution: {get_param: {{scope|lower}}_dns_reverse_zone} 
-        virtual_DNS_data_next_virtual_DNS: defalut-domain:{{scope}}
+        virtual_DNS_data_next_virtual_DNS: default-domain:dns-{{scope}}-zone
 
   {{scope|lower}}_dns_record:
     type: OS::ContrailV2::VirtualDnsRecord
@@ -145,7 +146,7 @@ resources:
           template: ns-proj-zone
           params:
             proj: {get_param: project}
-      virtual_DNS: defalut-domain:{{scope}}
+      virtual_DNS: 'default-domain:dns-{{scope}}-zone'
       virtual_DNS_record_data:
         virtual_DNS_record_data_record_class: IN
         virtual_DNS_record_data_record_data: {list_join: [':', {get_attr: [{{scope|lower}}_dns_server, fq_name]}]}
@@ -210,6 +211,7 @@ resources:
         - network_ipam_refs_data_ipam_subnets_subnet:
             network_ipam_refs_data_ipam_subnets_subnet_ip_prefix: {str_split: ['/', {get_param: {{scope|lower}}_cidr}, 0]}
             network_ipam_refs_data_ipam_subnets_subnet_ip_prefix_len: {str_split: ['/', {get_param: {{scope|lower}}_cidr}, 1]}
+          network_ipam_refs_data_ipam_subnets_addr_from_start: true
           network_ipam_refs_data_ipam_subnets_subnet_name: 
             str_replace:
               template: proj_{{scope|lower}}_subnet

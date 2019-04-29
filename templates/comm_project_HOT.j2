@@ -47,7 +47,7 @@ resources:
       virtual_DNS_data:
         virtual_DNS_data_default_ttl_seconds: {get_param: dns_ttl}
         virtual_DNS_data_domain_name: {get_param: region_dns_suffix}
-        virtual_DNS_data_external_visible: {get_param: dns_ext_visible}
+        virtual_DNS_data_external_visible: true
         virtual_DNS_data_record_order: {get_param: dns_record_order}
         virtual_DNS_data_reverse_resolution: {get_param: dns_reverse_zone}
         virtual_DNS_data_next_virtual_DNS: {get_param: dns_forwarder}
