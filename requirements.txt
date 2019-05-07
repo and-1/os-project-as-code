@@ -1,8 +1,6 @@
 pyyaml
 jinja2
 requests
-python-keystoneauth1
 python-keystoneclient
 python-heatclient
 argparse
-time
