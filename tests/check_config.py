@@ -24,12 +24,16 @@ def load_yaml(fname):
 
 def ks_sess(globs):
     loader= loading.get_plugin_loader('password')
-    auth= loader.load_from_options(auth_url=globs['auth_url'],
-                                                      username=globs['ks_username'],
-                                                      password=os.environ['KS_PASS'],
-                                                      project_name=globs['ks_project'],
-                                                      user_domain_name=globs['ks_domain'],
-                                                      project_domain_name=globs['ks_domain'])
+    try:
+      auth= loader.load_from_options(auth_url=globs['auth_url'],
+                                                        username=globs['ks_username'],
+                                                        password=os.environ['KS_PASS'],
+                                                        project_name=globs['ks_project'],
+                                                        user_domain_name=globs['ks_domain'],
+                                                        project_domain_name=globs['ks_domain'])
+    except KeyError as err:
+      print("Couldn't get key {}".format(str(err)))
+      sys.exit(1)
     sess = session.Session(auth=auth)
     return sess
 
