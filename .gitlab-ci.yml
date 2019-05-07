@@ -1,0 +1,45 @@
+# Variables KS_PASS, API_TOKEN must be set in gitlab-ci server
+stages:
+- test
+- deploy
+
+# Use python image until build own
+image: python
+before_script:
+- pip install -r requirements.txt
+
+test_global_conf:
+  stage: test
+  script:
+  - ./tests/check_config.py --type global
+  only:
+    changes:
+    - global.yaml
+
+test_project_conf:
+  stage: test
+  script:
+  - export FILE_LIST=$(./tools/get_changes.py)
+  - ./tests/check_config.py --type project
+  only:
+    changes:
+    - projects/*
+    
+
+deploy_projects_global:
+  stage: deploy
+  script:
+  - ./deploy --common
+  only:
+    changes:
+    - global.yaml
+
+deploy_projects_global:
+  stage: deploy
+  script:
+  - export FILE_LIST=$(./tools/get_changes.py)
+  - ./deploy
+  # Use except because if globals is changed all projects will be updated
+  except:
+    changes:
+    - global.yaml
