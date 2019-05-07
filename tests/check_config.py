@@ -46,9 +46,9 @@ args = parser.parse_args()
 if args.type == 'project':
   try:
     project_files = os.environ['FILE_LIST'].split(' ')
-  except KeyError:
+  except KeyError: 
     print("ERROR: Couldn't get changed list of files")
-    sys.exit(1)
+    sys.exit(1) 
   for conf in project_files:
     if re.match('^[^@]*$', conf):
       proj_conf = load_yaml(conf)
@@ -85,7 +85,7 @@ if args.type == 'project':
 
 if args.type == 'global':
   glob_conf = load_yaml(glob_file)
-
+  conf = 'tests/project.env'
   # check connection to ks
   try:
     ks_sess(glob_conf).get_token()
