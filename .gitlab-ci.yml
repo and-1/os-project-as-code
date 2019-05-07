@@ -29,7 +29,7 @@ test_project_conf:
 deploy_projects_global:
   stage: deploy
   script:
-  - ./deploy --common
+  - ./deploy.py --common
   only:
     changes:
     - global.yaml
@@ -38,7 +38,10 @@ deploy_projects_global:
   stage: deploy
   script:
   - export FILE_LIST=$(./tools/get_changes.py)
-  - ./deploy
+  - ./deploy.py
+  only:
+    changes:
+    - projects/*
   # Use except because if globals is changed all projects will be updated
   except:
     changes:
