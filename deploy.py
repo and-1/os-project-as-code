@@ -177,7 +177,7 @@ class proj_stack():
       if check:
         try:
           self.__heat__[region].stacks.preview(
-                                              stack_id=os_stacks[stack_name],
+                                              stack_name=stack_name,
                                               template=hot_tmpl,
                                               environment=hot_env,
                                               disable_rollback='true',

@@ -81,6 +81,7 @@ if args.type == 'project':
     # check heat template
     stack = proj_stack(glob_conf)
     stack.apply(conf, check=True)
+    print('{} config validation is completed successfully'.format(conf))
     
 
 if args.type == 'global':
@@ -128,5 +129,6 @@ if args.type == 'global':
     sys.exit(1)
   # check common project template
   stack = proj_stack(glob_conf)
-  stack.common_stack(conf, check=True)
+  stack.common_stack(check=True)
+  print('Global config validation is completed successfully')
 
