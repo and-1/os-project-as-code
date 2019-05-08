@@ -214,13 +214,13 @@ if __name__ == "__main__":
   timeout = 60
 
   parser = argparse.ArgumentParser(description='Create os stacks with project configs')
-  parser.add_argument('--common', help='deploy/update project_common os stack', action='store_true')
+  parser.add_argument('--all', help='deploy/update project_common os stack', action='store_true')
   args = parser.parse_args()
 
   try: 
     project_files = os.environ['FILE_LIST'].split(' ')
   except KeyError:
-    if args.common:
+    if args.all:
       project_files = [os.path.join(project_path,f) for f in os.listdir(project_path) if os.path.isfile(os.path.join(project_path, f))]
     else:
       print("Couldn't find environment variable $FILE_LIST")
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     sys.exit(1)
 
   project = proj_stack(global_dict)
-  if args.common:
+  if args.all:
     project.common_stack()
   for file in project_files:
     if re.match('^d@[^@]*$', file):

@@ -29,7 +29,7 @@ test_project_conf:
 deploy_globals:
   stage: deploy
   script:
-  - ./deploy.py --common
+  - ./deploy.py --all
   only:
     changes:
     - global.yaml
