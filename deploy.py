@@ -8,9 +8,10 @@ import collections
 from keystoneauth1 import loading, session
 from keystoneclient.v3 import client as ks_client
 from heatclient import client, exc as hexc
-from heatclient.common import template_format
+from heatclient.common import template_format, event_utils
 import time
 import argparse
+import copy
 
 class proj_stack():
   def __init__(self, glob_conf):
@@ -50,7 +51,40 @@ class proj_stack():
   def __uniq_list__(self, list_roles):
     list_set = set(list_roles)
     return list(list_set)
-
+  
+  def __stack_exec__(self, stack_name=None, stack_id=None, region=None, tmpl=None, env=None):
+    if stack_id:
+        try:
+          self.__heat__[region].stacks.update(
+                                              stack_id=stack_id,
+                                              template=tmpl,
+                                              environment=env,
+                                              disable_rollback='true',
+                                              wait='true',
+                                              )
+        except hexc.HTTPBadRequest as err:
+          print(str(err))
+        stack_status, msg = event_utils.poll_for_events(self.__heat__[region], 
+                                                        stack_name=stack_id, 
+                                                        action='UPDATE', 
+                                                       )
+    else:
+        try:
+          self.__heat__[region].stacks.create(
+                                              stack_name=stack_name,
+                                              template=tmpl,
+                                              environment=env,
+                                              disable_rollback='true',
+                                              wait='true',
+                                              )
+        except hexc.HTTPBadRequest as err:
+          print(str(err))
+        stack_status, msg = event_utils.poll_for_events(self.__heat__[region], 
+                                                        stack_name, 
+                                                        action='CREATE', 
+                                                       )
+    return stack_status, msg
+  
   def apply(self, conf_file, check=False):
     # Get content of project config file
     try:
@@ -123,27 +157,24 @@ class proj_stack():
         except hexc.HTTPBadRequest as err:
           print(str(err))
       elif stack_name in os_stacks.keys():
-        try:
-          self.__heat__[region].stacks.update(
-                                              stack_id=os_stacks[stack_name],
-                                              template=hot_tmpl,
-                                              environment=hot_env,
-                                              disable_rollback='true',
-                                              wait='true',
-                                              )
-        except hexc.HTTPBadRequest as err:
-          print(str(err))
+        res, msg = self.__stack_exec__(stack_id=os_stacks[stack_name], region=region, tmpl=hot_tmpl, env=hot_env)
+        if res  == 'UPDATE_FAILED':
+          raise hexc.StackFailure(msg)
+          sys.exit(1)
       else:
-        try:
-          self.__heat__[region].stacks.create(
-                                              stack_name=stack_name,
-                                              template=hot_tmpl,
-                                              environment=hot_env,
-                                              disable_rollback='true',
-                                              wait='true',
-                                              )
-        except hexc.HTTPBadRequest as err:
-          print(str(err))
+        res, msg = self.__stack_exec__(stack_name=stack_name, region=region, tmpl=hot_tmpl, env=hot_env)
+        left = copy.copy(self.__globs__['retry'])
+        if res  == 'CREATE_FAILED':
+          while left > 1:
+            if res  == 'UPDATE_FAILED':
+              for name in self.__heat__[region].stacks.list():
+                if name.stack_name == stack_name: stack_id = name.id 
+              res, msg = self.__stack_exec__(stack_id=stack_id, region=region, tmpl=hot_tmpl, env=hot_env)
+              left -= 1
+            else:
+              break
+          else:
+            raise hexc.StackFailure(msg)
 
   def delete(self, conf_file):
     # delete stack with project
@@ -185,33 +216,22 @@ class proj_stack():
         except hexc.HTTPBadRequest as err:
           print(str(err))
       elif act == 'update':
-        try:
-          self.__heat__[region].stacks.update(
-                                              stack_id=os_stacks[stack_name],
-                                              template=hot_tmpl,
-                                              environment=hot_env,
-                                              disable_rollback='true',
-                                              wait='true',
-                                              )
-        except hexc.HTTPBadRequest as err:
-          print(str(err))
+        res, msg = self.__stack_exec__(stack_id=os_stacks[stack_name], region=region, tmpl=hot_tmpl, env=hot_env)
+        if res  == 'UPDATE_FAILED':
+          raise hexc.StackFailure(msg)
+
       elif act == 'create': 
-        try:
-          self.__heat__[region].stacks.create(
-                                              stack_name=stack_name,
-                                              template=hot_tmpl,
-                                              environment=hot_env,
-                                              disable_rollback='true',
-                                              wait='true',
-                                              )
-        except hexc.HTTPBadRequest as err:
-          print(str(err))
+        res, msg = self.__stack_exec__(stack_name=stack_name, region=region, tmpl=hot_tmpl, env=hot_env)
+        if res == 'CREATE_FAILED':
+          raise hexc.StackFailure(msg)
+          sys.exit(1)
       
 
 if __name__ == "__main__":
   global_file = "global.yaml"
   project_path = 'projects'
   timeout = 60
+  retry = 2
 
   parser = argparse.ArgumentParser(description='Create os stacks with project configs')
   parser.add_argument('--all', help='deploy/update project_common os stack', action='store_true')
@@ -229,6 +249,7 @@ if __name__ == "__main__":
     with open(global_file) as f:
       global_dict = yaml.safe_load(f)
       global_dict['timeout']= timeout
+      global_dict['retry']= retry
   except IOError:
     print("Couldn't open file {}".format(global_file))
     sys.exit(1)
