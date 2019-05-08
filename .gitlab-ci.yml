@@ -26,7 +26,7 @@ test_project_conf:
     - projects/*
     
 
-deploy_projects_global:
+deploy_globals:
   stage: deploy
   script:
   - ./deploy.py --common
@@ -34,7 +34,7 @@ deploy_projects_global:
     changes:
     - global.yaml
 
-deploy_projects_global:
+deploy_projects:
   stage: deploy
   script:
   - export FILE_LIST=$(./tools/get_changes.py)
