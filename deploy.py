@@ -221,7 +221,7 @@ if __name__ == "__main__":
     project_files = os.environ['FILE_LIST'].split(' ')
   except KeyError:
     if args.all:
-      project_files = [os.path.join(project_path,f) for f in os.listdir(project_path) if os.path.isfile(os.path.join(project_path, f))]
+      project_files = [os.path.join(project_path,f) for f in os.listdir(project_path) if os.path.isfile(os.path.join(project_path, f)) and not re.match('^.*\.example$', str(f))]
     else:
       print("Couldn't find environment variable $FILE_LIST")
       sys.exit(1)
