@@ -100,7 +100,7 @@ class proj_stack():
             proj_names = {hot_env['parameters']['project']: '12345678-1234-5678-1234-567812345678'}
           else:
             proj_names = {proj.name: proj.id for proj in keystone.projects.list(domain=dom_names[merged_dict['domain']])}
-          if proj_names.has_key(merged_dict['project']):
+          if merged_dict['project'] in proj_names:
             hot_env['parameters']['project'] = proj_names[merged_dict['project']]
             break
           time.sleep(2)
@@ -163,7 +163,7 @@ class proj_stack():
     template_hot = env.get_template('comm_project_HOT.j2')
     for region in regions:
       os_stacks = {name.stack_name: name.id for name in self.__heat__[region].stacks.list()}
-      if not action.has_key(region):
+      if region not in action:
         act = 'update' if 'project_commons' in os_stacks.keys() else 'create'
       else:
         act = action[region]
