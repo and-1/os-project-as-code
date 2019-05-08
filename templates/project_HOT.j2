@@ -15,7 +15,7 @@ parameters:
   region_dns_suffix:
     type: string
     default: ""
-{%- for scope,data in net_scopes.iteritems()%}
+{%- for scope,data in net_scopes.items()%}
   {{scope|lower}}_import_rt:
     type: string
   {{scope|lower}}_export_rt:
@@ -114,7 +114,7 @@ resources:
 {%- endif %}
 {%- endfor %}
 {%- endfor %}
-{%- for scope,data in net_scopes.iteritems() %}
+{%- for scope,data in net_scopes.items() %}
   {{scope|lower}}_dns_server:
     type: OS::ContrailV2::VirtualDns
     properties:
