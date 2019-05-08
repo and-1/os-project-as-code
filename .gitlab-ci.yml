@@ -3,7 +3,7 @@ stages:
 - test
 - deploy
 
-# Use python image until build own
+# Use python image until build own. Python3 is required.
 image: python
 before_script:
 - pip install -r requirements.txt
@@ -26,7 +26,7 @@ test_project_conf:
     - projects/*
     
 
-deploy_globals:
+deploy_global_stacks:
   stage: deploy
   script:
   - ./deploy.py --all
@@ -34,7 +34,7 @@ deploy_globals:
     changes:
     - global.yaml
 
-deploy_projects:
+deploy_project_stacks:
   stage: deploy
   script:
   - export FILE_LIST=$(./tools/get_changes.py)
