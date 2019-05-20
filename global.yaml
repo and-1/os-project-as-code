@@ -1,16 +1,25 @@
+# Keystone endpoints
+# Keystone pass will be resides in env variable
 auth_url: http://keystone.logistic.lan:80/v3
 ks_username: admin
 ks_project: admin
 ks_domain: default
+# Default role for creating user
 default_role: member
+# Declare all existing regions
 regions:
   RegionOne:
+# Region with keystone is main
     main: true
     region_dns_suffix: cloud-r1.logistic.lan
+# Next-hop dns server in region
     dns_forwarder: 192.168.1.138
+# Keystone project domain in this region
     domain: dev
+# Output network scopes(environments)
     net_scopes:
       test:
+# Import/Export route target of scope
         import_rt: 64512:200
         export_rt: 64512:100
       dev:
